@@ -61,7 +61,20 @@ const App = () => {
   }
 
   const onSendData = useCallback(() => {
-    telegram.sendData(JSON.stringify(cartItems));
+    const queryID = telegram.initDataUnsave?.query_id;
+
+    if (queryID) {
+      fetch("https://localhost:8000/web-data", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(cartItems)
+
+      });
+    } else {
+      telegram.sendData(JSON.stringify(cartItems));
+    }
   }, [cartItems]);
 
   useEffect(() => {
@@ -69,7 +82,7 @@ const App = () => {
 
     return () => telegram.offEvent("mainButtonClicked", onSendData);
 
-    
+
   }, [onSendData]);
 
   return (
