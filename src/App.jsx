@@ -1,106 +1,102 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import './App.css'
-import Card from './components/card/card';
-import Cart from './components/cart/cart';
-import { getData } from './constants/db';
+import React, { useCallback, useEffect, useState } from "react";
+import "./App.css";
+import Card from "./components/card/card";
+import Cart from "./components/cart/cart";
+import { getData } from "./constants/db";
 
 const course = getData();
 
 const telegram = window.Telegram.WebApp;
 
 const App = () => {
+    const [cartItems, setCartItems] = useState([]);
 
+    useEffect(() => {
+        telegram.ready();
+    });
 
-  const [cartItems, setCartItems] = useState([]);
+    const onAddItem = (item) => {
+        const existItem = cartItems.find((c) => c.id == item.id);
 
-  useEffect(() => {
-    telegram.ready();
-  })
+        if (existItem) {
+            const newData = cartItems.map((c) =>
+                c.id == item.id
+                    ? { ...existItem, quantity: existItem.quantity + 1 }
+                    : c
+            );
+            setCartItems(newData);
+        } else {
+            const newData = [...cartItems, { ...item, quantity: 1 }];
+            setCartItems(newData);
+        }
+    };
 
-  const onAddItem = item => {
-    const existItem = cartItems.find(c => c.id == item.id);
+    const onRemoveItem = (item) => {
+        const existItem = cartItems.find((c) => c.id == item.id);
 
-    if (existItem) {
-      const newData = cartItems.map(c =>
-        c.id == item.id
-          ? { ...existItem, quantity: existItem.quantity + 1 }
-          : c
-      );
-      setCartItems(newData);
-    } else {
-      const newData = [...cartItems, { ...item, quantity: 1 }];
-      setCartItems(newData);
-    }
-  };
+        if (existItem.quantity === 1) {
+            const newData = cartItems.filter((c) => c.id !== existItem.id);
 
-  const onRemoveItem = item => {
-    const existItem = cartItems.find(c => c.id == item.id);
+            setCartItems(newData);
+        } else {
+            const newData = cartItems.map((c) =>
+                c.id === existItem.id
+                    ? { ...existItem, quantity: existItem.quantity - 1 }
+                    : c
+            );
+            setCartItems(newData);
+        }
+    };
 
-    if (existItem.quantity === 1) {
-      const newData = cartItems.filter(c => c.id !== existItem.id);
+    const onCheckout = () => {
+        telegram.MainButton.text = "Sotib olish :)";
+        telegram.MainButton.show();
+    };
 
-      setCartItems(newData);
-    } else {
+    const onSendData = useCallback(() => {
+        const queryID = telegram.initDataUnsafe?.query_id;
 
-      const newData = cartItems.map(c =>
+        if (queryID) {
+            fetch("https://localhost:8000/web-data", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(cartItems),
+            });
+        } else {
+            telegram.sendData(
+                JSON.stringify({
+                    products: cartItems,
+                    queryID: queryID,
+                })
+            );
+        }
+    }, [cartItems]);
 
-        c.id === existItem.id
-          ? { ...existItem, quantity: existItem.quantity - 1 }
-          : c
-      );
-      setCartItems(newData);
-    }
+    useEffect(() => {
+        telegram.onEvent("mainButtonClicked", onSendData);
 
+        return () => telegram.offEvent("mainButtonClicked", onSendData);
+    }, [onSendData]);
 
-
-  };
-
-  const onCheckout = () => {
-    telegram.MainButton.text = "Sotib olish :)";
-    telegram.MainButton.show();
-  }
-
-  const onSendData = useCallback(() => {
-    const queryID = telegram.initDataUnsave?.query_id;
-
-    if (queryID) {
-      fetch("https://localhost:8000/web-data", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          products: cartItems,
-          queryID: queryID,
-        })
-
-      });
-    } else {
-      telegram.sendData(JSON.stringify(cartItems));
-    }
-  }, [cartItems]);
-
-  useEffect(() => {
-    telegram.onEvent("mainButtonClicked", onSendData);
-
-    return () => telegram.offEvent("mainButtonClicked", onSendData);
-
-
-  }, [onSendData]);
-
-  return (
-    <>
-      <div>
-        <h1 className='heading'>Hayrulloh Kurslari</h1>
-        <Cart cartItems={cartItems} onCheckout={onCheckout} />
-        <div className='cards_container'>
-          {course.map(course => (
-            <Card key={course.id} course={course} onAddItem={onAddItem} onRemoveItem={onRemoveItem} />
-          ))}
-        </div>
-      </div>
-    </>
-  );
-
+    return (
+        <>
+            <div>
+                <h1 className="heading">Hayrulloh Kurslari</h1>
+                <Cart cartItems={cartItems} onCheckout={onCheckout} />
+                <div className="cards_container">
+                    {course.map((course) => (
+                        <Card
+                            key={course.id}
+                            course={course}
+                            onAddItem={onAddItem}
+                            onRemoveItem={onRemoveItem}
+                        />
+                    ))}
+                </div>
+            </div>
+        </>
+    );
 };
 export default App;
